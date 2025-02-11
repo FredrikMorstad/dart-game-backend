@@ -1,9 +1,8 @@
-use axum::{extract::State, http::StatusCode, Json};
+use core::fmt;
+
 use serde::{Deserialize, Serialize};
 
-use crate::app::AppState;
-
-use super::api_errors::NotationError;
+use crate::api::api_errors::NotationError;
 
 const BASE_POINTS: &'static [u8] = &[
     1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20,
@@ -17,6 +16,19 @@ pub enum PointNotation {
     S(u8),
     B,
     DB,
+}
+
+impl fmt::Display for PointNotation {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            PointNotation::MISS => write!(f, "MISS"),
+            PointNotation::T(value) => write!(f, "T({})", value),
+            PointNotation::D(value) => write!(f, "D({})", value),
+            PointNotation::S(value) => write!(f, "S({})", value),
+            PointNotation::B => write!(f, "B"),
+            PointNotation::DB => write!(f, "DB"),
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Copy, Clone, Debug)]
@@ -76,26 +88,4 @@ impl Point {
         };
         Ok(point)
     }
-}
-
-#[derive(Serialize, Deserialize, Copy, Clone, Debug)]
-struct ThrowPayload {
-    pub throw: PointNotation,
-}
-
-#[axum::debug_handler]
-pub async fn root(
-    State(state): State<AppState>,
-    Json(payload): Json<ThrowPayload>,
-) -> (StatusCode, Json<Point>) {
-    let throw = "A15";
-    let p = Point::new(throw);
-    println!("test point: {:?}", p);
-    (
-        StatusCode::OK,
-        Json(Point {
-            score: 1,
-            notation: PointNotation::B,
-        }),
-    )
 }

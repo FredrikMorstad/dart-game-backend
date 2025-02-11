@@ -8,6 +8,7 @@ use axum::{
 };
 use serde::{Deserialize, Serialize};
 
+#[derive(Debug)]
 pub enum ApiError {
     RecordNotFound,
     BadRequest(String),
@@ -20,6 +21,9 @@ pub enum ApiError {
 struct ErrorMessage {
     message: String,
 }
+
+// for api error to be used in transactions
+impl std::error::Error for ApiError {}
 
 impl IntoResponse for ApiError {
     fn into_response(self) -> Response {
@@ -46,6 +50,35 @@ impl IntoResponse for ApiError {
 impl From<sea_orm::DbErr> for ApiError {
     fn from(error: sea_orm::DbErr) -> Self {
         ApiError::DatabaseError(error)
+    }
+}
+
+// Implement `Display` for `MyError`
+impl fmt::Display for ApiError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            ApiError::RecordNotFound => write!(f, "Record not found"),
+            ApiError::BadRequest(msg) => write!(f, "Bad request: {}", msg),
+            ApiError::DatabaseError(err) => write!(f, "Database error: {}", err),
+            ApiError::ConflictError(msg) => write!(f, "Conflict: {}", msg),
+            ApiError::UnknownError(msg) => write!(f, "Unknown error: {}", msg),
+        }
+    }
+}
+
+impl From<NotationError> for ApiError {
+    fn from(error: NotationError) -> Self {
+        match error {
+            NotationError::InvalidPoint => {
+                ApiError::BadRequest(String::from("Error: invalid point"))
+            }
+            NotationError::InvalidFormat => {
+                ApiError::BadRequest(String::from("Error: invalid format"))
+            }
+            NotationError::ParseError(_e) => {
+                ApiError::BadRequest(String::from("Error parsing throw"))
+            }
+        }
     }
 }
 

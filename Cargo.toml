@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+anyhow = "1.0.95"
 axum = { version="0.8.1", features = ["macros"] }
 futures-util = "0.3.31"
 sea-orm = { version = "1.1.4", features = [ "sqlx-postgres", "runtime-tokio-rustls", "macros" ] }

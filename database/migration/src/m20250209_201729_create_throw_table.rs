@@ -54,7 +54,6 @@ pub enum Throws {
     Table,
     Id,
     Value,
-    Leg,
     GameId,
     LegId,
 }

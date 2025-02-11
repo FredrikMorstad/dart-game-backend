@@ -2,8 +2,8 @@
 
 use sea_orm::entity::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 #[sea_orm(table_name = "legs")]
+#[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
@@ -11,12 +11,27 @@ pub struct Model {
     pub player1_score: i32,
     pub player2_score: i32,
     pub set: i32,
+    pub game_id: Uuid,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
+    #[sea_orm(
+        belongs_to = "super::games::Entity",
+        from = "Column::GameId",
+        to = "super::games::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    Games,
     #[sea_orm(has_many = "super::throws::Entity")]
     Throws,
+}
+
+impl Related<super::games::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Games.def()
+    }
 }
 
 impl Related<super::throws::Entity> for Entity {

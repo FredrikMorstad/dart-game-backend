@@ -1,11 +1,12 @@
-use axum::routing::post;
+use axum::routing::{get, post};
 use axum::{Error, Router};
 use sea_orm::DatabaseConnection;
 use tower_http::trace::TraceLayer;
 use tower_http::trace::{self};
 use tracing::Level;
 
-use crate::api::game::create_game;
+use crate::api::game::{create_game, get_game};
+use crate::api::games::play::post_throw;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -28,7 +29,13 @@ impl App {
         let router = Router::new()
             .nest(
                 "/api",
-                Router::new().nest("/games", Router::new().route("/", post(create_game))),
+                Router::new().nest(
+                    "/games",
+                    Router::new()
+                        .route("/", post(create_game))
+                        .route("/{id}", get(get_game))
+                        .route("/throw", post(post_throw)),
+                ),
             )
             .layer(
                 TraceLayer::new_for_http()
