@@ -8,13 +8,13 @@ use crate::{
         api_errors::{ApiError, NotationError},
         games::{
             throw::Point,
-            utils::{check_score, has_won_game, has_won_set, leg_win_score_update},
+            utils::{check_score, leg_win_score_update},
         },
     },
     app::AppState,
     db::{games::get_full_game, legs::create_new_leg, set::create_new_set_with_leg},
     entities::{games, legs, sets, throws},
-    models::{self, game::Leg},
+    models::game::Leg,
 };
 
 pub enum Status {

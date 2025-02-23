@@ -10,6 +10,7 @@ use tracing::Level;
 
 use crate::api::game::{create_game, get_game};
 use crate::api::games::play::post_throw;
+use crate::api::games::sse::games::sse_game_handler;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -43,7 +44,8 @@ impl App {
                     Router::new()
                         .route("/", post(create_game))
                         .route("/{id}", get(get_game))
-                        .route("/throw", post(post_throw)),
+                        .route("/throw", post(post_throw))
+                        .nest("/sse", Router::new().route("/{id}", get(sse_game_handler))),
                 ),
             )
             .layer(cors_layer)
