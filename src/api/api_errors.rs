@@ -6,6 +6,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
+use sea_orm::DbErr;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug)]
@@ -30,12 +31,9 @@ impl IntoResponse for ApiError {
         let (status_code, message) = match self {
             ApiError::DatabaseError(err) => (
                 StatusCode::INTERNAL_SERVER_ERROR,
-                format!("An unexpected error fetching from database {}", err),
+                format!("an unexpected error fetching from database {}", err),
             ),
-            ApiError::RecordNotFound => (
-                StatusCode::NOT_FOUND,
-                String::from("Could not find entry in database"),
-            ),
+            ApiError::RecordNotFound => (StatusCode::NOT_FOUND, String::from("record not found")),
             ApiError::ConflictError(err) => (StatusCode::CONFLICT, format!("Conflict: {}", err)),
             ApiError::BadRequest(err) => (StatusCode::BAD_REQUEST, format!("Bad request: {}", err)),
             ApiError::UnknownError(err) => (
@@ -47,9 +45,13 @@ impl IntoResponse for ApiError {
     }
 }
 
+// TODO: convert sql runtime errors to APIError
 impl From<sea_orm::DbErr> for ApiError {
-    fn from(error: sea_orm::DbErr) -> Self {
-        ApiError::DatabaseError(error)
+    fn from(error: DbErr) -> Self {
+        match error {
+            DbErr::RecordNotFound(_) => ApiError::RecordNotFound,
+            _ => ApiError::DatabaseError(error),
+        }
     }
 }
 

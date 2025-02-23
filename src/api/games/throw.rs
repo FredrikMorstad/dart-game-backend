@@ -22,9 +22,9 @@ impl fmt::Display for PointNotation {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             PointNotation::MISS => write!(f, "MISS"),
-            PointNotation::T(value) => write!(f, "T({})", value),
-            PointNotation::D(value) => write!(f, "D({})", value),
-            PointNotation::S(value) => write!(f, "S({})", value),
+            PointNotation::T(value) => write!(f, "T{}", value),
+            PointNotation::D(value) => write!(f, "D{}", value),
+            PointNotation::S(value) => write!(f, "S{}", value),
             PointNotation::B => write!(f, "B"),
             PointNotation::DB => write!(f, "DB"),
         }

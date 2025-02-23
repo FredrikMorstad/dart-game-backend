@@ -1,4 +1,4 @@
-use dart_game_backend::{app::App, db::connect_to_db};
+use dart_game_backend::{app::App, db_utils::connect_to_db};
 use tokio::signal;
 
 async fn shutdown_signal() {
@@ -24,7 +24,7 @@ async fn shutdown_signal() {
 
 #[tokio::main]
 async fn main() {
-    let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
+    let listener = tokio::net::TcpListener::bind("0.0.0.0:5050").await.unwrap();
     println!("listening on {}", listener.local_addr().unwrap());
     let db = connect_to_db().await.unwrap();
     let app = App::new(db).unwrap();

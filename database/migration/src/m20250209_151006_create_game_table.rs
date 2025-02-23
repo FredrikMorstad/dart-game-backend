@@ -6,7 +6,6 @@ pub struct Migration;
 #[async_trait::async_trait]
 impl MigrationTrait for Migration {
     async fn up(&self, manager: &SchemaManager) -> Result<(), DbErr> {
-        // Replace the sample below with your own migration scripts
         manager
             .create_table(
                 Table::create()
@@ -16,7 +15,10 @@ impl MigrationTrait for Migration {
                     .col(ColumnDef::new(Games::Player1).string().not_null())
                     .col(ColumnDef::new(Games::Player2).string().not_null())
                     .col(ColumnDef::new(Games::Mode).integer().not_null())
-                    .col(ColumnDef::new(Games::Sets).integer().not_null())
+                    .col(ColumnDef::new(Games::Length).integer().not_null())
+                    .col(ColumnDef::new(Games::Player1Score).integer().not_null())
+                    .col(ColumnDef::new(Games::Player2Score).integer().not_null())
+                    .col(ColumnDef::new(Games::Winner).string())
                     .to_owned(),
             )
             .await
@@ -34,7 +36,10 @@ pub enum Games {
     Table,
     Id,
     Mode,
-    Sets,
+    Length,
     Player1,
     Player2,
+    Player1Score,
+    Player2Score,
+    Winner,
 }

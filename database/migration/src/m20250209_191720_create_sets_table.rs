@@ -1,6 +1,6 @@
 use sea_orm_migration::prelude::*;
 
-use crate::m20250209_191720_create_sets_table::Sets;
+use crate::m20250209_151006_create_game_table::Games;
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -11,26 +11,26 @@ impl MigrationTrait for Migration {
         manager
             .create_table(
                 Table::create()
-                    .table(Legs::Table)
+                    .table(Sets::Table)
                     .if_not_exists()
                     .col(
-                        ColumnDef::new(Legs::Id)
+                        ColumnDef::new(Sets::Id)
                             .integer()
                             .auto_increment()
                             .not_null()
                             .primary_key(),
                     )
-                    .col(ColumnDef::new(Legs::Number).integer().not_null())
-                    .col(ColumnDef::new(Legs::Player1Score).integer().not_null())
-                    .col(ColumnDef::new(Legs::Player2Score).integer().not_null())
-                    .col(ColumnDef::new(Legs::SetId).integer().not_null())
-                    .col(ColumnDef::new(Legs::NextPlayer).string().not_null())
-                    .col(ColumnDef::new(Legs::Opening).string().not_null())
+                    .col(ColumnDef::new(Sets::Number).integer().not_null())
+                    .col(ColumnDef::new(Sets::Player1Points).integer().not_null())
+                    .col(ColumnDef::new(Sets::Player2Points).integer().not_null())
+                    .col(ColumnDef::new(Sets::GameId).uuid().not_null())
+                    .col(ColumnDef::new(Sets::Opening).string().not_null())
+                    .col(ColumnDef::new(Sets::Length).integer().not_null())
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk-sets-leg")
-                            .from(Legs::Table, Legs::SetId)
-                            .to(Sets::Table, Sets::Id)
+                            .name("fk-game-sets")
+                            .from(Sets::Table, Sets::GameId)
+                            .to(Games::Table, Games::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
@@ -40,19 +40,19 @@ impl MigrationTrait for Migration {
 
     async fn down(&self, manager: &SchemaManager) -> Result<(), DbErr> {
         manager
-            .drop_table(Table::drop().table(Legs::Table).to_owned())
+            .drop_table(Table::drop().table(Sets::Table).to_owned())
             .await
     }
 }
 
 #[derive(DeriveIden)]
-pub enum Legs {
+pub enum Sets {
     Table,
     Id,
     Number,
-    Player1Score,
-    Player2Score,
-    NextPlayer,
+    Player1Points,
+    Player2Points,
     Opening,
-    SetId,
+    Length,
+    GameId,
 }

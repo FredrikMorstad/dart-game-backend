@@ -1,4 +1,4 @@
-use sea_orm_migration::{prelude::*, schema::*};
+use sea_orm_migration::prelude::*;
 
 use crate::{m20250209_151006_create_game_table::Games, m20250209_191729_create_legs_table::Legs};
 
@@ -32,7 +32,7 @@ impl MigrationTrait for Migration {
                     )
                     .foreign_key(
                         ForeignKey::create()
-                            .name("fk-legs-throws")
+                            .name("fk-leg-throws")
                             .from(Throws::Table, Throws::LegId)
                             .to(Legs::Table, Legs::Id)
                             .on_delete(ForeignKeyAction::Cascade),

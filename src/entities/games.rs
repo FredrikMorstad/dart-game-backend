@@ -10,20 +10,23 @@ pub struct Model {
     pub player1: String,
     pub player2: String,
     pub mode: i32,
-    pub sets: i32,
+    pub length: i32,
+    pub player1_score: i32,
+    pub player2_score: i32,
+    pub winner: Option<String>,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
-    #[sea_orm(has_many = "super::legs::Entity")]
-    Legs,
+    #[sea_orm(has_many = "super::sets::Entity")]
+    Sets,
     #[sea_orm(has_many = "super::throws::Entity")]
     Throws,
 }
 
-impl Related<super::legs::Entity> for Entity {
+impl Related<super::sets::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Legs.def()
+        Relation::Sets.def()
     }
 }
 

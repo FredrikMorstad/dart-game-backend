@@ -3,41 +3,41 @@
 use sea_orm::entity::prelude::*;
 
 #[derive(Clone, Debug, PartialEq, DeriveEntityModel, Eq)]
-#[sea_orm(table_name = "legs")]
+#[sea_orm(table_name = "sets")]
 pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub number: i32,
-    pub player1_score: i32,
-    pub player2_score: i32,
-    pub set_id: i32,
-    pub next_player: String,
+    pub player1_points: i32,
+    pub player2_points: i32,
+    pub game_id: Uuid,
     pub opening: String,
+    pub length: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
 pub enum Relation {
     #[sea_orm(
-        belongs_to = "super::sets::Entity",
-        from = "Column::SetId",
-        to = "super::sets::Column::Id",
+        belongs_to = "super::games::Entity",
+        from = "Column::GameId",
+        to = "super::games::Column::Id",
         on_update = "NoAction",
         on_delete = "Cascade"
     )]
-    Sets,
-    #[sea_orm(has_many = "super::throws::Entity")]
-    Throws,
+    Games,
+    #[sea_orm(has_many = "super::legs::Entity")]
+    Legs,
 }
 
-impl Related<super::sets::Entity> for Entity {
+impl Related<super::games::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Sets.def()
+        Relation::Games.def()
     }
 }
 
-impl Related<super::throws::Entity> for Entity {
+impl Related<super::legs::Entity> for Entity {
     fn to() -> RelationDef {
-        Relation::Throws.def()
+        Relation::Legs.def()
     }
 }
 
