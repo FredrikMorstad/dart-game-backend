@@ -1,6 +1,6 @@
 use axum::http::header::CONTENT_TYPE;
 use axum::http::{HeaderValue, Method};
-use axum::routing::{get, post};
+use axum::routing::{any, get, post};
 use axum::{Error, Router};
 use sea_orm::DatabaseConnection;
 use tower_http::cors::CorsLayer;
@@ -10,6 +10,7 @@ use tracing::Level;
 
 use crate::api::game::{create_game, get_game};
 use crate::api::games::play::post_throw;
+use crate::api::ws::game::game_ws;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -43,7 +44,8 @@ impl App {
                     Router::new()
                         .route("/", post(create_game))
                         .route("/{id}", get(get_game))
-                        .route("/throw", post(post_throw)),
+                        .route("/throw", post(post_throw))
+                        .nest("/ws", Router::new().route("/", any(game_ws))),
                 ),
             )
             .layer(cors_layer)
