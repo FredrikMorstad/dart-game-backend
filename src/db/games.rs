@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::{
     entities::{games, legs, sets, throws},
-    models::game::{GameWithThrows, Leg},
+    models::{game::GameWithThrows, leg::Leg},
 };
 
 pub async fn get_full_game(db: &DatabaseConnection, id: Uuid) -> Result<GameWithThrows, DbErr> {
