@@ -2,7 +2,7 @@ use axum::{
     extract::{Path, State},
     Json,
 };
-use sea_orm::{ActiveValue::NotSet, DbErr, EntityTrait, Set, TransactionTrait};
+use sea_orm::{ActiveValue::NotSet, DatabaseConnection, DbErr, EntityTrait, Set, TransactionTrait};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -47,7 +47,7 @@ pub async fn get_game(
 
 #[axum::debug_handler]
 pub async fn create_game(
-    State(state): State<AppState>,
+    State(db): State<DatabaseConnection>,
     Json(payload): Json<NewGame>,
 ) -> Result<Json<Game>, ApiError> {
     if !ALLOWED_MODES.contains(&payload.mode) {
@@ -63,8 +63,7 @@ pub async fn create_game(
     let mode = i32::from(payload.mode);
     let sets = i32::from(payload.sets);
 
-    let game = state
-        .db
+    let game = db
         .transaction::<_, Game, DbErr>(|txn| {
             let next_player = payload.player_1.clone();
             Box::pin(async move {
