@@ -1,5 +1,5 @@
 use axum::{extract::State, http::StatusCode, Json};
-use sea_orm::{EntityTrait, Set, TransactionError, TransactionTrait, Unchanged};
+use sea_orm::{ActiveModelTrait, EntityTrait, Set, TransactionError, TransactionTrait, Unchanged};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -8,13 +8,13 @@ use crate::{
         api_errors::{ApiError, NotationError},
         games::{
             throw::Point,
-            utils::{check_score, has_won_game, has_won_set, leg_win_score_update},
+            utils::{check_score, leg_win_score_update},
         },
     },
-    app::AppState,
+    channels::Producer,
     db::{games::get_full_game, legs::create_new_leg, set::create_new_set_with_leg},
     entities::{games, legs, sets, throws},
-    models::{self, game::Leg},
+    models::{leg::Leg, set::Set},
 };
 
 pub enum Status {
@@ -38,8 +38,15 @@ pub struct PlayerScores {
     pub set_score: i32,
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct GameEvent<T> {
+    pub id: Uuid,
+    pub event_type: String,
+    pub data: T,
+}
+
 pub async fn post_throw(
-    State(state): State<AppState>,
+    State(state): State<Producer>,
     Json(payload): Json<Throw>,
 ) -> Result<StatusCode, ApiError> {
     if payload.throws.len() > 3 {
@@ -51,7 +58,7 @@ pub async fn post_throw(
     let throws: Result<Vec<Point>, NotationError> = payload
         .throws
         .into_iter()
-        .map(|throw| Point::new(&throw))
+        .map(|throw| throw.parse())
         .collect();
 
     let points = throws?;
@@ -125,7 +132,7 @@ pub async fn post_throw(
     let mut leg_won = false;
 
     // filters out throws after overshoot, so the score is either valid or 0 i.e leg won
-    let new_points: Vec<throws::ActiveModel> = points
+    let valid_points: Vec<Point> = points
         .clone()
         .iter()
         .scan(false, |has_overshot, point| {
@@ -149,8 +156,13 @@ pub async fn post_throw(
                     *has_overshot = true;
                 }
             };
-            Some(point)
+            Some(point.clone())
         })
+        .collect();
+
+    let new_points: Vec<throws::ActiveModel> = valid_points
+        .clone()
+        .into_iter()
         .map(|p| throws::ActiveModel {
             game_id: Set(payload.game_id),
             leg_id: Set(i32::from(leg.id)),
@@ -216,16 +228,64 @@ pub async fn post_throw(
     state
         .db
         .transaction::<_, (), ApiError>(|tx| {
-            // clone before move, to avoid values being removed before transaction is complete
-            let leg = leg.clone();
             Box::pin(async move {
+                let mut events: Vec<String> = vec![];
                 // inserts the trow and updates scores as it should always
                 // be updated regardless of win, overshoot or regular throw
-                throws::Entity::insert_many(new_points).exec(tx).await?;
-                legs::Entity::update(update_leg).exec(tx).await?;
-                sets::Entity::update(update_set).exec(tx).await?;
-                games::Entity::update(update_game).exec(tx).await?;
+                throws::Entity::insert_many(new_points)
+                    .exec_with_returning(tx)
+                    .await?;
 
+                // fetches the updated leg with the new throws with their id
+                let update = legs::Entity::update(update_leg).exec(tx).await?;
+
+                let updated_leg = legs::Entity::find_by_id(update.id)
+                    .find_with_related(throws::Entity)
+                    .all(tx)
+                    .await?
+                    .first()
+                    .cloned()
+                    .ok_or(ApiError::UnknownError("a".to_string()))?;
+
+                let leg = Leg::from(updated_leg);
+
+                let leg_update = GameEvent {
+                    id: game.id,
+                    event_type: "update".to_string(),
+                    data: leg.clone(),
+                };
+
+                let point_event_serialized = serde_json::to_string(&leg_update);
+                match point_event_serialized {
+                    Ok(point_event_serialized) => {
+                        events.push(point_event_serialized);
+                    }
+                    Err(_) => (),
+                }
+
+                if update_set.is_changed() {
+                    let set = sets::Entity::update(update_set).exec(tx).await?;
+
+                    let set_model = Set::from(set);
+
+                    let set_update = GameEvent {
+                        id: game.id,
+                        event_type: "update".to_string(),
+                        data: set_model,
+                    };
+
+                    let set_event_serialized = serde_json::to_string(&set_update);
+                    match set_event_serialized {
+                        Ok(set_event_serialized) => {
+                            events.push(set_event_serialized);
+                        }
+                        Err(_) => (),
+                    }
+                }
+
+                if update_game.is_changed() {
+                    let game = games::Entity::update(update_game).exec(tx).await?;
+                }
                 // handles creating new leg or set based on the score of the player
                 if should_create_new_set {
                     // negates the previous opening player for last set
@@ -259,6 +319,10 @@ pub async fn post_throw(
                     )
                     .await?;
                 }
+
+                events.iter().for_each(|msg| {
+                    let _ = state.sender.send(msg.to_string());
+                });
 
                 Ok(())
             })

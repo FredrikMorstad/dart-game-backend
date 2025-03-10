@@ -1,4 +1,5 @@
 use core::fmt;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
@@ -35,6 +36,13 @@ impl fmt::Display for PointNotation {
 pub struct Point {
     pub notation: PointNotation, //miss, double, triple bull ...
     pub score: u8,               // the counting score
+}
+
+impl FromStr for Point {
+    type Err = NotationError;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Point::new(s)
+    }
 }
 
 impl Point {
