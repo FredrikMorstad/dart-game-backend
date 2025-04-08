@@ -4,4 +4,5 @@ use serde::{Deserialize, Serialize};
 pub struct Throw {
     pub id: i32,
     pub value: String,
+    pub thrower: String,
 }

@@ -8,8 +8,10 @@ pub struct Model {
     #[sea_orm(primary_key)]
     pub id: i32,
     pub value: String,
+    pub thrower: String,
     pub game_id: Uuid,
     pub leg_id: i32,
+    pub round_id: i32,
 }
 
 #[derive(Copy, Clone, Debug, EnumIter, DeriveRelation)]
@@ -30,6 +32,14 @@ pub enum Relation {
         on_delete = "Cascade"
     )]
     Legs,
+    #[sea_orm(
+        belongs_to = "super::rounds::Entity",
+        from = "Column::RoundId",
+        to = "super::rounds::Column::Id",
+        on_update = "NoAction",
+        on_delete = "Cascade"
+    )]
+    Rounds,
 }
 
 impl Related<super::games::Entity> for Entity {
@@ -41,6 +51,12 @@ impl Related<super::games::Entity> for Entity {
 impl Related<super::legs::Entity> for Entity {
     fn to() -> RelationDef {
         Relation::Legs.def()
+    }
+}
+
+impl Related<super::rounds::Entity> for Entity {
+    fn to() -> RelationDef {
+        Relation::Rounds.def()
     }
 }
 

@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use axum::{
     extract::{
         ws::{Message, Utf8Bytes, WebSocket},
@@ -17,8 +15,8 @@ use crate::{channels::Consumer, db::games::get_full_game};
 fn parse_game_id_from_event(msg: &str) -> Result<Uuid, serde_json::Error> {
     let value: Value = serde_json::from_str(msg)?;
 
-    if let Some(game_id) = value.get("game_id").and_then(|v| v.as_str()) {
-        Uuid::parse_str(game_id).map_err(|_| serde_json::Error::custom("Invalid UUID format"))
+    if let Some(game_id) = value.get("id").and_then(|v| v.as_str()) {
+        Uuid::parse_str(game_id).map_err(|e| serde_json::Error::custom(e.to_string()))
     } else {
         Err(serde_json::Error::custom(
             "game_id not found or not a string",
