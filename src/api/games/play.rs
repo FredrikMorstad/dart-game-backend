@@ -1,5 +1,8 @@
 use axum::{extract::State, http::StatusCode, Json};
-use sea_orm::{ActiveModelTrait, EntityTrait, Set, TransactionError, TransactionTrait, Unchanged};
+use sea_orm::{
+    ActiveModelTrait, ActiveValue::NotSet, EntityTrait, Set, TransactionError, TransactionTrait,
+    Unchanged,
+};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -12,8 +15,11 @@ use crate::{
         },
     },
     channels::Producer,
-    db::{games::get_full_game, legs::create_new_leg, set::create_new_set_with_leg},
-    entities::{games, legs, sets, throws},
+    db::{
+        games::get_full_game, legs::create_new_leg, rounds::get_leg_with_rounds,
+        set::create_new_set_with_leg,
+    },
+    entities::{games, legs, rounds, sets, throws},
     models::{leg::Leg, set::Set},
 };
 
@@ -136,10 +142,6 @@ pub async fn post_throw(
         .clone()
         .iter()
         .scan(false, |has_overshot, point| {
-            println!(
-                "score: {}, has_overshot: {:?}",
-                scores.round_score, has_overshot
-            );
             if *has_overshot == true || leg_won == true {
                 return None;
             }
@@ -160,18 +162,7 @@ pub async fn post_throw(
         })
         .collect();
 
-    let new_points: Vec<throws::ActiveModel> = valid_points
-        .clone()
-        .into_iter()
-        .map(|p| throws::ActiveModel {
-            game_id: Set(payload.game_id),
-            leg_id: Set(i32::from(leg.id)),
-            value: Set(p.notation.to_string()),
-            ..Default::default()
-        })
-        .collect();
-
-    if new_points.len() == 0 {
+    if valid_points.len() == 0 {
         return Ok(StatusCode::OK);
     }
 
@@ -179,11 +170,9 @@ pub async fn post_throw(
     let mut should_create_new_set = false;
     let game_won;
 
-    println!("new score: {}", scores.round_score);
-
     // works but maybe a refactor at some point
     // match the trows to the player and update the score to be updated in the transaction
-    match payload.player {
+    match payload.player.clone() {
         player if player == player_1 => {
             update_leg.next_player = Set(player_2.clone());
             if !overshot {
@@ -194,7 +183,6 @@ pub async fn post_throw(
                     if game_won {
                         update_game.winner = Set(Some(game.player_1.clone()))
                     }
-                    println!("after update score: {:?}", scores);
                     update_set.player1_points = Set(scores.leg_score);
                     update_game.player1_score = Set(scores.set_score);
                 }
@@ -211,7 +199,6 @@ pub async fn post_throw(
                     if game_won {
                         update_game.winner = Set(Some(game.player_2.clone()))
                     }
-                    println!("after update score: {:?}", scores);
                     update_game.player1_score = Set(scores.set_score);
                     update_set.player2_points = Set(scores.leg_score);
                 }
@@ -220,73 +207,52 @@ pub async fn post_throw(
         _ => return Err(ApiError::BadRequest(String::from("invalid player name"))),
     };
 
-    println!(
-        "running update, create_new_leg: {}, create_new_set: {}",
-        should_create_new_leg, should_create_new_leg
-    );
+    let active_round = leg.clone().rounds.into_iter().max_by_key(|leg| leg.number);
+
+    let active_numer = match active_round {
+        Some(active_round) => active_round.number,
+        None => 0,
+    };
 
     state
         .db
         .transaction::<_, (), ApiError>(|tx| {
             Box::pin(async move {
-                let mut events: Vec<String> = vec![];
+                let new_round = rounds::ActiveModel {
+                    id: NotSet,
+                    number: Set(active_numer + 1),
+                    leg_id: Set(leg.id),
+                };
+
+                let round = rounds::Entity::insert(new_round)
+                    .exec_with_returning(tx)
+                    .await?;
+
                 // inserts the trow and updates scores as it should always
                 // be updated regardless of win, overshoot or regular throw
+                let new_points: Vec<throws::ActiveModel> = valid_points
+                    .clone()
+                    .into_iter()
+                    .map(|p| throws::ActiveModel {
+                        id: NotSet,
+                        game_id: Set(payload.game_id),
+                        leg_id: Set(leg.id),
+                        value: Set(p.notation.to_string()),
+                        thrower: Set(payload.player.clone()),
+                        round_id: Set(round.id),
+                    })
+                    .collect();
+
                 throws::Entity::insert_many(new_points)
                     .exec_with_returning(tx)
                     .await?;
 
-                // fetches the updated leg with the new throws with their id
-                let update = legs::Entity::update(update_leg).exec(tx).await?;
-
-                let updated_leg = legs::Entity::find_by_id(update.id)
-                    .find_with_related(throws::Entity)
-                    .all(tx)
-                    .await?
-                    .first()
-                    .cloned()
-                    .ok_or(ApiError::UnknownError(
-                        "error fetching updated leg".to_string(),
-                    ))?;
-
-                let leg = Leg::from(updated_leg);
-
-                let leg_update = GameEvent {
-                    id: game.id,
-                    event_type: "update".to_string(),
-                    data: leg.clone(),
-                };
-
-                let point_event_serialized = serde_json::to_string(&leg_update);
-                match point_event_serialized {
-                    Ok(point_event_serialized) => {
-                        events.push(point_event_serialized);
-                    }
-                    Err(_) => (),
-                }
-
                 if update_set.is_changed() {
-                    let set = sets::Entity::update(update_set).exec(tx).await?;
-
-                    let set_model = Set::from(set);
-
-                    let set_update = GameEvent {
-                        id: game.id,
-                        event_type: "update".to_string(),
-                        data: set_model,
-                    };
-
-                    let set_event_serialized = serde_json::to_string(&set_update);
-                    match set_event_serialized {
-                        Ok(set_event_serialized) => {
-                            events.push(set_event_serialized);
-                        }
-                        Err(_) => (),
-                    }
+                    let _ = sets::Entity::update(update_set).exec(tx).await?;
                 }
 
                 if update_game.is_changed() {
-                    let game = games::Entity::update(update_game).exec(tx).await?;
+                    let _ = games::Entity::update(update_game).exec(tx).await?;
                 }
 
                 // handles creating new leg or set based on the score of the player
@@ -297,7 +263,7 @@ pub async fn post_throw(
                         next_opening_player = player_2.clone();
                     }
 
-                    create_new_set_with_leg(
+                    let _ = create_new_set_with_leg(
                         tx,
                         game.id,
                         game.mode,
@@ -313,7 +279,7 @@ pub async fn post_throw(
                         next_opening_player = player_2;
                     }
 
-                    create_new_leg(
+                    let _ = create_new_leg(
                         tx,
                         active_set.id,
                         game.mode,
@@ -323,10 +289,6 @@ pub async fn post_throw(
                     .await?;
                 }
 
-                events.iter().for_each(|msg| {
-                    let _ = state.sender.send(msg.to_string());
-                });
-
                 Ok(())
             })
         })
@@ -335,6 +297,24 @@ pub async fn post_throw(
             TransactionError::Connection(db_err) => ApiError::DatabaseError(db_err),
             TransactionError::Transaction(api_error) => api_error,
         })?;
+
+    // TODO: send individual events over fetching entire db
+    let game = get_full_game(&state.db, payload.game_id).await?;
+    let game_event = GameEvent {
+        id: game.id,
+        event_type: "update".to_string(),
+        data: game,
+    };
+
+    let game_event_serialized = serde_json::to_string(&game_event);
+    match game_event_serialized {
+        Ok(game_serialized) => {
+            let _ = state.sender.send(game_serialized.to_string());
+        }
+        Err(e) => {
+            println!("err {}", e);
+        }
+    }
 
     Ok(StatusCode::OK)
 }
