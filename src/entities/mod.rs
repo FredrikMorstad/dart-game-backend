@@ -4,5 +4,6 @@ pub mod prelude;
 
 pub mod games;
 pub mod legs;
+pub mod rounds;
 pub mod sets;
 pub mod throws;

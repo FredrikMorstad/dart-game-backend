@@ -1,6 +1,9 @@
 use sea_orm_migration::prelude::*;
 
-use crate::{m20250209_151006_create_game_table::Games, m20250209_191729_create_legs_table::Legs};
+use crate::{
+    m20250209_151006_create_game_table::Games, m20250209_191729_create_legs_table::Legs,
+    m20250209_191730_create_rounds_table::Rounds,
+};
 
 #[derive(DeriveMigrationName)]
 pub struct Migration;
@@ -21,8 +24,10 @@ impl MigrationTrait for Migration {
                             .primary_key(),
                     )
                     .col(ColumnDef::new(Throws::Value).string().not_null())
+                    .col(ColumnDef::new(Throws::Thrower).string().not_null())
                     .col(ColumnDef::new(Throws::GameId).uuid().not_null())
                     .col(ColumnDef::new(Throws::LegId).integer().not_null())
+                    .col(ColumnDef::new(Throws::RoundId).integer().not_null())
                     .foreign_key(
                         ForeignKey::create()
                             .name("fk-game-throws")
@@ -35,6 +40,13 @@ impl MigrationTrait for Migration {
                             .name("fk-leg-throws")
                             .from(Throws::Table, Throws::LegId)
                             .to(Legs::Table, Legs::Id)
+                            .on_delete(ForeignKeyAction::Cascade),
+                    )
+                    .foreign_key(
+                        ForeignKey::create()
+                            .name("fk-round-throws")
+                            .from(Throws::Table, Throws::RoundId)
+                            .to(Rounds::Table, Rounds::Id)
                             .on_delete(ForeignKeyAction::Cascade),
                     )
                     .to_owned(),
@@ -54,6 +66,8 @@ pub enum Throws {
     Table,
     Id,
     Value,
+    Thrower,
     GameId,
     LegId,
+    RoundId,
 }

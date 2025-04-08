@@ -3,6 +3,7 @@ pub use sea_orm_migration::prelude::*;
 mod m20250209_151006_create_game_table;
 mod m20250209_191720_create_sets_table;
 mod m20250209_191729_create_legs_table;
+mod m20250209_191730_create_rounds_table;
 mod m20250209_201729_create_throw_table;
 
 pub struct Migrator;
@@ -14,6 +15,7 @@ impl MigratorTrait for Migrator {
             Box::new(m20250209_151006_create_game_table::Migration),
             Box::new(m20250209_191720_create_sets_table::Migration),
             Box::new(m20250209_191729_create_legs_table::Migration),
+            Box::new(m20250209_191730_create_rounds_table::Migration),
             Box::new(m20250209_201729_create_throw_table::Migration),
         ]
     }

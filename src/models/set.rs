@@ -44,7 +44,7 @@ impl From<(sets::Model, Vec<legs::Model>)> for Set {
                 set_id: leg_entity.set_id,
                 next_player: leg_entity.next_player.clone(),
                 opening: leg_entity.opening.clone(),
-                throws: vec![],
+                rounds: vec![],
             })
             .collect();
         Set {

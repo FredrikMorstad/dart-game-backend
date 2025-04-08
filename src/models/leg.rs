@@ -1,8 +1,8 @@
 use serde::{Deserialize, Serialize};
 
-use crate::entities::{legs, throws};
+use crate::entities::{legs, rounds};
 
-use super::throw::Throw;
+use super::rounds::Round;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Leg {
@@ -13,16 +13,18 @@ pub struct Leg {
     pub set_id: i32,
     pub opening: String,
     pub next_player: String,
-    pub throws: Vec<Throw>,
+    pub rounds: Vec<Round>,
 }
 
-impl From<(legs::Model, Vec<throws::Model>)> for Leg {
-    fn from((leg, throws): (legs::Model, Vec<throws::Model>)) -> Self {
-        let throws: Vec<Throw> = throws
+impl From<(legs::Model, Vec<rounds::Model>)> for Leg {
+    fn from((leg, rounds): (legs::Model, Vec<rounds::Model>)) -> Self {
+        let leg_rounds: Vec<Round> = rounds
             .iter()
-            .map(|throw_model| Throw {
-                id: throw_model.id,
-                value: throw_model.value.clone(),
+            .map(|round_model| Round {
+                id: round_model.id,
+                number: round_model.number,
+                leg_id: round_model.leg_id,
+                throws: vec![],
             })
             .collect();
         Leg {
@@ -33,7 +35,7 @@ impl From<(legs::Model, Vec<throws::Model>)> for Leg {
             set_id: leg.set_id,
             next_player: leg.next_player.clone(),
             opening: leg.opening,
-            throws,
+            rounds: leg_rounds,
         }
     }
 }
@@ -48,7 +50,7 @@ impl From<legs::Model> for Leg {
             next_player: leg.next_player,
             player1_score: leg.player1_score,
             player2_score: leg.player2_score,
-            throws: vec![],
+            rounds: vec![],
         }
     }
 }
